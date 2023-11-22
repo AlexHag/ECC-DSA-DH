@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using EccDsaDh.Models;
 
 namespace EccDsaDh;
@@ -97,8 +96,7 @@ public static class CryptoService
 
         var aes = Aes.Create();
         aes.Key = sharedKey;
-        aes.IV = HexToBytes("11EAB6883BCAFB69189247667E1F77CB");
-        byte[] iv = HexToBytes("11EAB6883BCAFB69189247667E1F77CB"); // aes.IV;
+        byte[] iv = aes.IV;
 
         using var cipherStream = new MemoryStream();
         using var cs = new CryptoStream(cipherStream, aes.CreateEncryptor(), CryptoStreamMode.Write);
@@ -110,9 +108,6 @@ public static class CryptoService
         string cipher = BytesToHex(iv) + "." + BytesToHex(cipherBytes);
 
         var signature = SignMessage(keyPair.PrivateKey, message);
-        Console.Write("Encrypting message, signature: ");
-        PrintObj(signature);
-        Console.WriteLine("\n");
 
         var encryptedMessage = new EncryptedMessage
         {
@@ -151,33 +146,10 @@ public static class CryptoService
             Signature = encryptedMessage.Signature,
             MessageHash = BytesToHex(messageHash)
         };
-        Console.Write("Decrypting message, signature: ");
-        PrintObj(signature);
-        Console.WriteLine("\n");
 
         var validation = VerifySignedMessage(signature);
         return validation;
     }
-
-    // public static string DecryptMessage(KeyPair keyPair, string cipher, string senderPublicKey)
-    // {
-    //     byte[] sharedKey = ECDH(HexToBytes(keyPair.PrivateKey), HexToBytes(senderPublicKey));
-
-    //     byte[] iv = HexToBytes(cipher.Split(".")[0]);
-    //     byte[] encryptedMessageBytes = HexToBytes(cipher.Split(".")[1]);
-
-    //     var aes = Aes.Create();
-    //     aes.Key = sharedKey;
-    //     aes.IV = iv;
-
-    //     using var plaintextStream = new MemoryStream();
-    //     using var cs = new CryptoStream(plaintextStream, aes.CreateDecryptor(), CryptoStreamMode.Write);
-    //     cs.Write(encryptedMessageBytes, 0, encryptedMessageBytes.Length);
-    //     cs.Close();
-    //     string message = Encoding.UTF8.GetString(plaintextStream.ToArray());
-
-    //     return message;
-    // }
 
     private static byte[] ECDH(byte[] privateKey, byte[] publicKey)
     {
@@ -200,7 +172,6 @@ public static class CryptoService
         });
 
         byte[] sharedKey = alice.DeriveKeyMaterial(bob.PublicKey);
-        Console.WriteLine($"Shared Key: {BytesToHex(sharedKey)}");
         return sharedKey;
     }
 
@@ -214,7 +185,4 @@ public static class CryptoService
 
     private static string BytesToHex(byte[] bytes)
         => BitConverter.ToString(bytes).Replace("-", "");
-
-    public static void PrintObj(object obj)
-        => Console.WriteLine(JsonSerializer.Serialize(obj, new JsonSerializerOptions{ WriteIndented = true }));
 }
