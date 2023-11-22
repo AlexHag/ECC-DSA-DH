@@ -1,30 +1,46 @@
 ﻿using System;
+using System.Text.Json;
+using EccDsaDh.Models;
 
-namespace PauliECProgram;
+namespace EccDsaDh;
 
 public class Program
 {
     public static void Main(string[] args)
     {
-        var Alice = new ECMin();
-        Alice.ImportPrivateKeyHex("AD4AC791DD74D1B9977E71677B0092AB85CB8C0121D0202CA617DE67B5742391");
-        
-        var Bob = new ECMin();
-        Bob.ImportPrivateKeyHex("166A9098648FD8DFF07968235F032652B8A7ABB128C102173AC5EBC3D652E159");
+        Console.WriteLine("Starting...");
+        var alice = JsonSerializer.Deserialize<KeyPair>(File.ReadAllText("alice.json"));
+        var bob = JsonSerializer.Deserialize<KeyPair>(File.ReadAllText("bob.json"));
 
-        var Message = "Hello, world!";
+        var encryptedMessage = CryptoService.EncryptMessage(alice, "Hello bob", bob.PublicKey);
+        encryptedMessage.Signature = Reverse(encryptedMessage.Signature);
+        Console.Write("Message was encrypted: ");
+        PrintObj(encryptedMessage);
+        var validation = CryptoService.DecryptMessage(encryptedMessage, bob.PrivateKey, out string message);
 
-        var Cipher = Alice.EncryptDH(Message, Bob.ExportPublicKeyHex());
-        Console.WriteLine(Cipher);
-        
-        var OriginalMessage = Bob.DecryptDH(Cipher, Alice.ExportPublicKeyHex());
-        Console.WriteLine(OriginalMessage);
+        Console.WriteLine(validation);
+        Console.WriteLine(message);
+    }
+    
+    private static byte[] StringToByteArray(string hex)
+    {
+        return Enumerable.Range(0, hex.Length)
+                            .Where(x => x % 2 == 0)
+                            .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                            .ToArray();
+    }
 
-        var Signature = Alice.SignMessage(Message);
-        Console.WriteLine(Signature);
+    public static string SerializeObj(object obj)
+        => JsonSerializer.Serialize(obj, new JsonSerializerOptions{ WriteIndented = true });
 
-        var IsValid = ECMin.VerifyMessage(Message, Signature, Alice.ExportPublicKeyHex());
-        Console.WriteLine(IsValid);
+    public static void PrintObj(object obj)
+        => Console.WriteLine(JsonSerializer.Serialize(obj, new JsonSerializerOptions{ WriteIndented = true }));
+
+    public static string Reverse( string s )
+    {
+        char[] charArray = s.ToCharArray();
+        Array.Reverse(charArray);
+        return new string(charArray);
     }
 }
 
